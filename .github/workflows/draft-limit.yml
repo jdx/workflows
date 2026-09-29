@@ -12,7 +12,7 @@ name: draft-limit
 #
 #   name: draft-limit
 #   on:
-#     pull_request_target:
+#     pull_request_target: # zizmor: ignore[dangerous-triggers]
 #       types: [opened, reopened, converted_to_draft]
 #   permissions: {}
 #   jobs:
@@ -25,7 +25,8 @@ name: draft-limit
 #
 # The caller must use pull_request_target: on pull_request, fork PRs get a
 # read-only token and can't be commented on or closed. That is safe here
-# because this workflow never checks out or runs the pull request's code.
+# because this workflow never checks out or runs the pull request's code;
+# the zizmor ignore records that for the dangerous-triggers audit.
 #
 # Drafts opened by bots and by authors whose association with the repository
 # is listed in exempt_associations are never closed. The default exempts
