@@ -1,0 +1,101 @@
+name: draft-limit
+
+# Reusable workflow: closes a draft pull request when its author already has
+# too many other open drafts.
+#
+# GitHub has no setting that caps a contributor's open pull requests, and a
+# failing check would not help: a draft can't be merged anyway. Closing is
+# the only enforcement, so the workflow comments and closes the extra draft.
+# The author can reopen it once they finish or close their other draft.
+#
+# Caller repos add:
+#
+#   name: draft-limit
+#   on:
+#     pull_request_target:
+#       types: [opened, reopened, converted_to_draft]
+#   permissions: {}
+#   jobs:
+#     draft-limit:
+#       permissions:
+#         pull-requests: write
+#       uses: jdx/workflows/.github/workflows/draft-limit.yml@<sha> # vX.Y.Z
+#       with:
+#         max_drafts: 1
+#
+# The caller must use pull_request_target: on pull_request, fork PRs get a
+# read-only token and can't be commented on or closed. That is safe here
+# because this workflow never checks out or runs the pull request's code.
+#
+# Drafts opened by bots and by authors whose association with the repository
+# is listed in exempt_associations are never closed. The default exempts
+# maintainers (OWNER, MEMBER, COLLABORATOR).
+#
+# When two drafts are opened at once, the one with the higher number is the
+# one closed, so a race can't close both. A PR that becomes a draft again
+# (converted_to_draft) or is reopened counts every other open draft against
+# its author, since it is not the newest one.
+
+on:
+  workflow_call:
+    inputs:
+      max_drafts:
+        description: Open draft pull requests each author may have at once
+        required: false
+        type: number
+        default: 1
+      exempt_associations:
+        description: Comma-separated author_association values that are never limited
+        required: false
+        type: string
+        default: OWNER,MEMBER,COLLABORATOR
+
+permissions: {}
+
+jobs:
+  draft-limit:
+    if: github.event.pull_request.draft && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Close the pull request if its author has too many drafts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          EVENT_ACTION: ${{ github.event.action }}
+          MAX_DRAFTS: ${{ inputs.max_drafts }}
+          EXEMPT: ${{ inputs.exempt_associations }}
+        run: |
+          set -euo pipefail
+
+          case ",${EXEMPT// /}," in
+            *",${ASSOCIATION},"*)
+              echo "Author ${AUTHOR} is ${ASSOCIATION}; not limited"
+              exit 0
+              ;;
+          esac
+
+          # Other open drafts by this author. A newly opened draft only counts
+          # the older ones, so the newest of several simultaneous drafts loses.
+          if [ "$EVENT_ACTION" = "opened" ]; then
+            filter="[.[].number | select(. < \$pr)]"
+          else
+            filter="[.[].number | select(. != \$pr)]"
+          fi
+          others=$(gh pr list -R "$REPO" --author "$AUTHOR" --state open --draft \
+            --limit 100 --json number | jq -c --argjson pr "$PR" "$filter")
+          count=$(jq length <<<"$others")
+
+          if [ "$count" -lt "$MAX_DRAFTS" ]; then
+            echo "${AUTHOR} has ${count} other open draft(s); limit is ${MAX_DRAFTS}"
+            exit 0
+          fi
+
+          list=$(jq -r 'map("#\(.)") | join(", ")' <<<"$others")
+          gh pr close "$PR" -R "$REPO" --comment "Thanks for the contribution! To keep review manageable, this repository allows each contributor ${MAX_DRAFTS} open draft pull request(s) at a time, and you already have ${list}.
+
+          Please finish it (mark it ready for review) or close it, then reopen this pull request."
