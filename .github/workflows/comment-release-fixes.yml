@@ -1,0 +1,42 @@
+# Call after a GitHub Release is published, or directly from a publishing job
+# whose GITHUB_TOKEN would suppress a release event. Pin callers to a release SHA.
+name: comment-release-fixes
+on:
+  workflow_dispatch:
+    inputs:
+      tag: { required: true, type: string }
+      tag_pattern: { required: false, type: string, default: '^v[0-9][0-9A-Za-z._+-]*$' }
+      marker_prefix: { required: true, type: string }
+      upgrade_text: { required: false, type: string, default: '' }
+      dry_run: { required: false, type: boolean, default: true }
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+      tag_pattern: { required: false, type: string, default: '^v[0-9][0-9A-Za-z._+-]*$' }
+      marker_prefix: { required: true, type: string }
+      upgrade_text: { required: false, type: string, default: '' }
+      dry_run: { required: false, type: boolean, default: false }
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      discussions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: jdx/workflows
+          ref: ${{ github.workflow_sha }}
+          path: workflows
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          TAG_PATTERN: ${{ inputs.tag_pattern }}
+          MARKER_PREFIX: ${{ inputs.marker_prefix }}
+          UPGRADE_TEXT: ${{ inputs.upgrade_text }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python3 workflows/scripts/comment-release-fixes.py
