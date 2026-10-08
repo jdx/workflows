@@ -86,7 +86,17 @@ still an example
             "repos/acme/tool/compare/v2...v3?per_page=1": {"status": "ahead", "ahead_by": 2},
             "repos/acme/tool/compare/v2-alias...v3?per_page=1": {"status": "identical", "ahead_by": 0},
         })
-        self.assertEqual(release.base_release(api, "acme/tool", "v3", re.compile(r"^v.*")), "v2")
+        self.assertEqual(release.base_release(api, "acme/tool", "v3", re.compile(r"^v.*")), ("v2", False))
+
+    def test_prior_same_commit_tag_is_an_empty_range_by_publication_order(self):
+        api = API({
+            "repos/acme/tool/releases?per_page=100&page=1": [
+                {"tag_name": "v3-alias", "draft": False, "prerelease": False},
+                {"tag_name": "v3", "draft": False, "prerelease": False},
+            ],
+            "repos/acme/tool/compare/v3...v3-alias?per_page=1": {"status": "identical", "ahead_by": 0},
+        })
+        self.assertEqual(release.base_release(api, "acme/tool", "v3-alias", re.compile(r"^v.*")), ("v3", True))
 
     def test_missing_and_uncomparable_tags_fail_closed(self):
         missing = API({"repos/acme/tool/releases?per_page=100&page=1": [{"tag_name": "v1", "draft": False, "prerelease": False}]})

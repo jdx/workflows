@@ -53,7 +53,8 @@ def paged(gh, path):
 def base_release(gh, repo, tag, pattern):
     rs=[r for r in paged(gh,f"repos/{repo}/releases") if not r["draft"] and not r["prerelease"] and pattern.fullmatch(r["tag_name"])]
     if tag not in {r["tag_name"] for r in rs}: raise Failure(f"{tag} is not a stable published release in this tag family")
-    choices=[]; errors=[]
+    choices=[]; identical=[]; errors=[]
+    target_index=next(i for i,r in enumerate(rs) if r["tag_name"] == tag)
     for i,r in enumerate(rs):
         old=r["tag_name"]
         if old==tag: continue
@@ -61,9 +62,13 @@ def base_release(gh, repo, tag, pattern):
         except Failure as e: errors.append(str(e)); continue
         # Identical tag aliases do not represent a fresh shipment.
         if cmp.get("status")=="ahead" and cmp.get("ahead_by",0)>0: choices.append((cmp["ahead_by"],i,old))
+        elif cmp.get("status")=="identical" and i > target_index: identical.append((i,old))
     if errors: raise Failure("cannot safely establish release ancestry:\n"+"\n".join(errors))
-    if not choices: raise Failure(f"no earlier contained release found for {tag}; refusing to widen the range")
-    return min(choices)[2]
+    if choices: return min(choices)[2],False
+    # A later-published alias of the same commit shipped no new work.  Treat it
+    # as an empty range, rather than looking past it and re-announcing fixes.
+    if identical: return min(identical)[1],True
+    raise Failure(f"no earlier contained release found for {tag}; refusing to widen the range")
 
 def commits(gh, repo, base, tag):
     out=[]
@@ -80,10 +85,11 @@ def shipped_prs(gh, repo, changes):
     out=[]
     for n in sorted(nums):
         try: pr=gh.api(f"repos/{repo}/pulls/{n}")
-        except Failure:
+        except Failure as e:
             # A malformed historical subject is not grounds to abandon other
             # verifiably shipped PRs in this release; it never creates a write.
-            continue
+            if "404" in str(e): continue
+            raise
         # Subject syntax is only a lead: require a merged PR and its merge commit
         # in the compared range, preventing unmerged/spoofed PR notifications.
         if pr.get("merged_at") and pr.get("merge_commit_sha") in shas: out.append(pr)
@@ -114,7 +120,7 @@ def notify(gh,repo,tag,prefix,upgrade,dry,out=print):
     # from GET /user (which is not a supported installation-token identity API).
     actor=os.environ.get("COMMENT_AUTHOR", "github-actions[bot]")
     if not actor: raise Failure("cannot determine token identity for safe deduplication")
-    base=base_release(gh,repo,tag,pattern); changes=commits(gh,repo,base,tag); pulls=shipped_prs(gh,repo,changes)
+    base,empty=base_release(gh,repo,tag,pattern); changes=[] if empty else commits(gh,repo,base,tag); pulls=shipped_prs(gh,repo,changes)
     out(json.dumps({"tag":tag,"base":base,"commits":len(changes),"pulls":[p["number"] for p in pulls],"dry_run":dry}))
     failures=[]; seen=set()
     for pr in pulls:
