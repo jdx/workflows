@@ -4,14 +4,19 @@ import json, os, re, subprocess, sys
 
 KEYWORD = r"(?:close(?:s|d)?|fix(?:es|ed)?|resolve(?:s|d)?)"
 REF = re.compile(rf"\b{KEYWORD}\s*:?\s+(?:discussion\s+)?(?:(?P<url>https://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)/(?:issues|discussions)/(?P<urlnum>[1-9]\d*))|#(?P<num>[1-9]\d*))\b", re.I)
-SUBJECT = re.compile(r"(?:\(#(?P<squash>[1-9]\d*)\)|Merge pull request #(?P<merge>[1-9]\d*))", re.I)
+SQUASH_SUBJECT = re.compile(r"\s*\(#(?P<number>[1-9]\d*)\)\s*$")
+MERGE_SUBJECT = re.compile(r"^Merge pull request #(?P<number>[1-9]\d*)\b", re.I)
 
 class Failure(Exception): pass
 
 def clean(body):
     body = re.sub(r"<!--[\s\S]*?-->", "", body or "")
-    body = re.sub(r"(?ms)^\s*(```|~~~).*?^\s*\1\s*$", "", body)
-    return "\n".join(re.sub(r"`[^`]*`", "", l) for l in body.splitlines()
+    # Match the whole delimiter, so four-backtick fences and longer delimiters
+    # cannot be escaped by a three-backtick line inside an example.
+    body = re.sub(r"(?ms)^\s*(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^\s*(?P=fence)\s*$", "", body)
+    # GitHub permits arbitrary-length inline delimiters and multiline spans.
+    body = re.sub(r"(?s)(`+).*?\1", "", body)
+    return "\n".join(l for l in body.splitlines()
                      if not re.match(r"^(?:\s{4}|\t|\s*>).*", l))
 
 def refs(body, owner, repo):
@@ -69,11 +74,16 @@ def commits(gh, repo, base, tag):
 def shipped_prs(gh, repo, changes):
     shas={c["sha"] for c in changes}; nums=set()
     for c in changes:
-        m=SUBJECT.search(c.get("commit",{}).get("message","").split("\n",1)[0])
-        if m: nums.add(int(m["squash"] or m["merge"]))
+        subject=c.get("commit",{}).get("message","").split("\n",1)[0]
+        m=SQUASH_SUBJECT.search(subject) or MERGE_SUBJECT.search(subject)
+        if m: nums.add(int(m["number"]))
     out=[]
     for n in sorted(nums):
-        pr=gh.api(f"repos/{repo}/pulls/{n}")
+        try: pr=gh.api(f"repos/{repo}/pulls/{n}")
+        except Failure:
+            # A malformed historical subject is not grounds to abandon other
+            # verifiably shipped PRs in this release; it never creates a write.
+            continue
         # Subject syntax is only a lead: require a merged PR and its merge commit
         # in the compared range, preventing unmerged/spoofed PR notifications.
         if pr.get("merged_at") and pr.get("merge_commit_sha") in shas: out.append(pr)
@@ -97,16 +107,19 @@ def has_issue_comment(gh,repo,num,marker,actor):
     return any(c.get("user",{}).get("login")==actor and marker in (c.get("body") or "") for c in paged(gh,f"repos/{repo}/issues/{num}/comments"))
 
 def notify(gh,repo,tag,prefix,upgrade,dry,out=print):
-    owner,_=repo.split("/",1); pattern=re.compile(os.environ.get("TAG_PATTERN",r"^v[0-9][0-9A-Za-z._+-]*$"))
+    owner,name=repo.split("/",1); pattern=re.compile(os.environ.get("TAG_PATTERN",r"^v[0-9][0-9A-Za-z._+-]*$"))
     if not pattern.fullmatch(tag): raise Failure(f"{tag} does not match TAG_PATTERN")
-    actor=gh.api("user").get("login")
+    # GITHUB_TOKEN comments are authored by github-actions[bot].  A different
+    # credential must explicitly provide its known actor, rather than guessing
+    # from GET /user (which is not a supported installation-token identity API).
+    actor=os.environ.get("COMMENT_AUTHOR", "github-actions[bot]")
     if not actor: raise Failure("cannot determine token identity for safe deduplication")
     base=base_release(gh,repo,tag,pattern); changes=commits(gh,repo,base,tag); pulls=shipped_prs(gh,repo,changes)
     out(json.dumps({"tag":tag,"base":base,"commits":len(changes),"pulls":[p["number"] for p in pulls],"dry_run":dry}))
     failures=[]; seen=set()
     for pr in pulls:
       try:
-       for n in refs(pr.get("body") or "",owner,repo):
+       for n in refs(pr.get("body") or "",owner,name):
         if n in seen: continue
         body=text(repo,tag,pr["number"],prefix,upgrade); marker=mark(prefix,tag)
         try:
@@ -117,7 +130,7 @@ def notify(gh,repo,tag,prefix,upgrade,dry,out=print):
             else: gh.api(f"repos/{repo}/issues/{n}/comments","POST",{"body":body}); out(f"commented on issue #{n} (from #{pr['number']})")
         except Failure as e:
             if "404" not in str(e): raise
-            d=get_discussion(gh,owner,repo,n)
+            d=get_discussion(gh,owner,name,n)
             if not d: raise Failure(f"target #{n} is neither an accessible issue nor discussion")
             if not d["closed"]: out(f"skip discussion #{n}: still open")
             elif any(c.get("author",{}).get("login")==actor and marker in (c.get("body") or "") for c in d["all_comments"]): out(f"skip discussion #{n}: already commented for {tag}")

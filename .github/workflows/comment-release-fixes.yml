@@ -9,6 +9,7 @@ on:
       marker_prefix: { required: true, type: string }
       upgrade_text: { required: false, type: string, default: '' }
       dry_run: { required: false, type: boolean, default: true }
+      comment_author: { required: false, type: string, default: 'github-actions[bot]' }
   workflow_call:
     inputs:
       tag: { required: true, type: string }
@@ -16,6 +17,7 @@ on:
       marker_prefix: { required: true, type: string }
       upgrade_text: { required: false, type: string, default: '' }
       dry_run: { required: false, type: boolean, default: false }
+      comment_author: { required: false, type: string, default: 'github-actions[bot]' }
 jobs:
   comment:
     runs-on: ubuntu-latest
@@ -39,4 +41,5 @@ jobs:
           MARKER_PREFIX: ${{ inputs.marker_prefix }}
           UPGRADE_TEXT: ${{ inputs.upgrade_text }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          COMMENT_AUTHOR: ${{ inputs.comment_author }}
         run: python3 workflows/scripts/comment-release-fixes.py
