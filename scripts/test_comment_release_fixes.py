@@ -68,7 +68,7 @@ Fixes https://github.com/other/tool/issues/18"""
 Fixes #2
 ```
 still an example
-````
+`````
 ``Fixes #3``
 `Fixes
 #4`"""
@@ -133,6 +133,12 @@ still an example
             "repos/acme/tool/issues/4/comments?per_page=100&page=2": [{"user": {"login": "token-user"}, "body": "<!-- x:v1 -->"}],
         })
         self.assertTrue(release.has_issue_comment(api, "acme/tool", 4, "<!-- x:v1 -->", "token-user"))
+
+    def test_github_actions_graphql_and_rest_author_aliases_deduplicate_safely(self):
+        api = API({"repos/acme/tool/issues/4/comments?per_page=100&page=1": [{"user": {"login": "github-actions[bot]"}, "body": "<!-- x:v1 -->"}]})
+        self.assertTrue(release.has_issue_comment(api, "acme/tool", 4, "<!-- x:v1 -->", "github-actions[bot]"))
+        self.assertTrue(release.owned("github-actions", "github-actions[bot]"))
+        self.assertFalse(release.owned(None, "github-actions[bot]"))
 
     def test_reopened_discussion_is_skipped(self):
         pull = {"number": 1, "merged_at": "yes", "merge_commit_sha": "m", "body": "Fixes discussion #9"}

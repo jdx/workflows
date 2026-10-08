@@ -13,7 +13,8 @@ def clean(body):
     body = re.sub(r"<!--[\s\S]*?-->", "", body or "")
     # Match the whole delimiter, so four-backtick fences and longer delimiters
     # cannot be escaped by a three-backtick line inside an example.
-    body = re.sub(r"(?ms)^\s*(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^\s*(?P=fence)\s*$", "", body)
+    body = re.sub(r"(?ms)^\s*(?P<backtick>`{3,})[^\n]*\n.*?^\s*(?P=backtick)`*\s*$", "", body)
+    body = re.sub(r"(?ms)^\s*(?P<tilde>~{3,})[^\n]*\n.*?^\s*(?P=tilde)~*\s*$", "", body)
     # GitHub permits arbitrary-length inline delimiters and multiline spans.
     body = re.sub(r"(?s)(`+).*?\1", "", body)
     return "\n".join(l for l in body.splitlines()
@@ -109,8 +110,9 @@ def get_discussion(gh, owner, repo, number):
 
 def mark(prefix,tag): return f"<!-- {prefix}:{tag} -->"
 def text(repo,tag,pr,prefix,upgrade): return f"{mark(prefix,tag)}\nFixed in [{tag}](https://github.com/{repo}/releases/tag/{tag}) by #{pr}."+(f" {upgrade}" if upgrade else "")
+def owned(login,actor): return login==actor or (actor=="github-actions[bot]" and login in {"github-actions", "github-actions[bot]"})
 def has_issue_comment(gh,repo,num,marker,actor):
-    return any(c.get("user",{}).get("login")==actor and marker in (c.get("body") or "") for c in paged(gh,f"repos/{repo}/issues/{num}/comments"))
+    return any(owned(c.get("user",{}).get("login"),actor) and marker in (c.get("body") or "") for c in paged(gh,f"repos/{repo}/issues/{num}/comments"))
 
 def notify(gh,repo,tag,prefix,upgrade,dry,out=print):
     owner,name=repo.split("/",1); pattern=re.compile(os.environ.get("TAG_PATTERN",r"^v[0-9][0-9A-Za-z._+-]*$"))
@@ -139,7 +141,7 @@ def notify(gh,repo,tag,prefix,upgrade,dry,out=print):
             d=get_discussion(gh,owner,name,n)
             if not d: raise Failure(f"target #{n} is neither an accessible issue nor discussion")
             if not d["closed"]: out(f"skip discussion #{n}: still open")
-            elif any(c.get("author",{}).get("login")==actor and marker in (c.get("body") or "") for c in d["all_comments"]): out(f"skip discussion #{n}: already commented for {tag}")
+            elif any(owned(c.get("author",{}).get("login"),actor) and marker in (c.get("body") or "") for c in d["all_comments"]): out(f"skip discussion #{n}: already commented for {tag}")
             elif dry: out(f"[dry run] would comment on discussion #{n} (from #{pr['number']})")
             else: gh.gql(ADD,id=d["id"],body=body); out(f"commented on discussion #{n} (from #{pr['number']})")
         seen.add(n)
