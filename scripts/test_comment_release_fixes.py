@@ -86,7 +86,7 @@ still an example
             "repos/acme/tool/compare/v2...v3?per_page=1": {"status": "ahead", "ahead_by": 2},
             "repos/acme/tool/compare/v2-alias...v3?per_page=1": {"status": "identical", "ahead_by": 0},
         })
-        self.assertEqual(release.base_release(api, "acme/tool", "v3", re.compile(r"^v.*")), ("v2", False))
+        self.assertEqual(release.base_release(api, "acme/tool", "v3", re.compile(r"^v.*")), ("v2-alias", True))
 
     def test_prior_same_commit_tag_is_an_empty_range_by_publication_order(self):
         api = API({
@@ -97,6 +97,18 @@ still an example
             "repos/acme/tool/compare/v3...v3-alias?per_page=1": {"status": "identical", "ahead_by": 0},
         })
         self.assertEqual(release.base_release(api, "acme/tool", "v3-alias", re.compile(r"^v.*")), ("v3", True))
+
+    def test_alias_wins_over_an_older_ancestor(self):
+        api = API({
+            "repos/acme/tool/releases?per_page=100&page=1": [
+                {"tag_name": "v3", "draft": False, "prerelease": False},
+                {"tag_name": "v2", "draft": False, "prerelease": False},
+                {"tag_name": "v1", "draft": False, "prerelease": False},
+            ],
+            "repos/acme/tool/compare/v2...v3?per_page=1": {"status": "identical", "ahead_by": 0},
+            "repos/acme/tool/compare/v1...v3?per_page=1": {"status": "ahead", "ahead_by": 4},
+        })
+        self.assertEqual(release.base_release(api, "acme/tool", "v3", re.compile(r"^v.*")), ("v2", True))
 
     def test_missing_and_uncomparable_tags_fail_closed(self):
         missing = API({"repos/acme/tool/releases?per_page=100&page=1": [{"tag_name": "v1", "draft": False, "prerelease": False}]})
@@ -127,6 +139,14 @@ still an example
         changes = [{"sha": "m", "commit": {"message": "Fix regression (#12) (#345)"}}]
         self.assertEqual([p["number"] for p in release.shipped_prs(api, "acme/tool", changes)], [345])
 
+    def test_pr_404_is_ignored_but_a_500_for_pr_404_propagates(self):
+        changes = [{"sha": "m", "commit": {"message": "x (#404)"}}]
+        missing = API({"repos/acme/tool/pulls/404": release.Failure("not found", 404)})
+        self.assertEqual(release.shipped_prs(missing, "acme/tool", changes), [])
+        broken = API({"repos/acme/tool/pulls/404": release.Failure("server error", 500)})
+        with self.assertRaisesRegex(release.Failure, "server error"):
+            release.shipped_prs(broken, "acme/tool", changes)
+
     def test_issue_dedup_paginates_and_requires_current_token_identity(self):
         api = API({
             "repos/acme/tool/issues/4/comments?per_page=100&page=1": [{"user": {"login": "old-bot"}, "body": "<!-- x:v1 -->"}] * 100,
@@ -142,7 +162,7 @@ still an example
 
     def test_reopened_discussion_is_skipped(self):
         pull = {"number": 1, "merged_at": "yes", "merge_commit_sha": "m", "body": "Fixes discussion #9"}
-        api = release_fixture([pull], {"repos/acme/tool/issues/9": release.Failure("404 Not Found")}, {
+        api = release_fixture([pull], {"repos/acme/tool/issues/9": release.Failure("404 Not Found", 404)}, {
             9: {"id": "D_9", "closed": False, "comments": {"nodes": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
         })
         output = []
@@ -152,7 +172,7 @@ still an example
 
     def test_actual_owner_name_is_used_for_discussion_full_url_contract(self):
         pull = {"number": 1, "merged_at": "yes", "merge_commit_sha": "m", "body": "Fixes https://github.com/acme/tool/discussions/9"}
-        api = release_fixture([pull], {"repos/acme/tool/issues/9": release.Failure("404 Not Found")}, {
+        api = release_fixture([pull], {"repos/acme/tool/issues/9": release.Failure("404 Not Found", 404)}, {
             9: {"id": "D_9", "closed": True, "comments": {"nodes": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
         })
         release.notify(api, "acme/tool", "v2", "fixed", "", False, lambda _: None)
@@ -160,6 +180,13 @@ still an example
         self.assertEqual(lookups[0]["owner"], "acme")
         self.assertEqual(lookups[0]["repo"], "tool")
         self.assertTrue(any(path == "graphql" and values.get("id") == "D_9" for path, _, values in api.calls))
+
+    def test_null_discussion_author_is_safe_in_notification_flow(self):
+        pull = {"number": 1, "merged_at": "yes", "merge_commit_sha": "m", "body": "Fixes discussion #9"}
+        api = release_fixture([pull], {"repos/acme/tool/issues/9": release.Failure("404 Not Found", 404)}, {
+            9: {"id": "D_9", "closed": True, "comments": {"nodes": [{"author": None, "body": "<!-- fixed:v2 -->"}], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
+        })
+        release.notify(api, "acme/tool", "v2", "fixed", "", True, lambda _: None)
 
     def test_partial_failure_then_retry_deduplicates_first_target(self):
         pulls = [

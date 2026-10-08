@@ -7,7 +7,8 @@ REF = re.compile(rf"\b{KEYWORD}\s*:?\s+(?:discussion\s+)?(?:(?P<url>https://gith
 SQUASH_SUBJECT = re.compile(r"\s*\(#(?P<number>[1-9]\d*)\)\s*$")
 MERGE_SUBJECT = re.compile(r"^Merge pull request #(?P<number>[1-9]\d*)\b", re.I)
 
-class Failure(Exception): pass
+class Failure(Exception):
+    def __init__(self, message, status=None): super().__init__(message); self.status=status
 
 def clean(body):
     body = re.sub(r"<!--[\s\S]*?-->", "", body or "")
@@ -32,7 +33,9 @@ class GH:
         cmd=["gh","api",path,"-X",method]
         if data is not None: cmd += ["--input","-"]
         r=subprocess.run(cmd,input=json.dumps(data) if data is not None else None,text=True,capture_output=True)
-        if r.returncode: raise Failure(f"{path}: {r.stderr.strip() or 'GitHub API request failed'}")
+        if r.returncode:
+            match=re.search(r"\bHTTP\s+(\d{3})\b",r.stderr)
+            raise Failure(f"{path}: {r.stderr.strip() or 'GitHub API request failed'}",int(match.group(1)) if match else None)
         try: return json.loads(r.stdout)
         except json.JSONDecodeError as e: raise Failure(f"{path}: invalid JSON response") from e
     def gql(self, query, **values):
@@ -65,10 +68,10 @@ def base_release(gh, repo, tag, pattern):
         if cmp.get("status")=="ahead" and cmp.get("ahead_by",0)>0: choices.append((cmp["ahead_by"],i,old))
         elif cmp.get("status")=="identical" and i > target_index: identical.append((i,old))
     if errors: raise Failure("cannot safely establish release ancestry:\n"+"\n".join(errors))
-    if choices: return min(choices)[2],False
     # A later-published alias of the same commit shipped no new work.  Treat it
     # as an empty range, rather than looking past it and re-announcing fixes.
     if identical: return min(identical)[1],True
+    if choices: return min(choices)[2],False
     raise Failure(f"no earlier contained release found for {tag}; refusing to widen the range")
 
 def commits(gh, repo, base, tag):
@@ -89,7 +92,7 @@ def shipped_prs(gh, repo, changes):
         except Failure as e:
             # A malformed historical subject is not grounds to abandon other
             # verifiably shipped PRs in this release; it never creates a write.
-            if "404" in str(e): continue
+            if e.status==404: continue
             raise
         # Subject syntax is only a lead: require a merged PR and its merge commit
         # in the compared range, preventing unmerged/spoofed PR notifications.
@@ -137,11 +140,11 @@ def notify(gh,repo,tag,prefix,upgrade,dry,out=print):
             elif dry: out(f"[dry run] would comment on issue #{n} (from #{pr['number']})")
             else: gh.api(f"repos/{repo}/issues/{n}/comments","POST",{"body":body}); out(f"commented on issue #{n} (from #{pr['number']})")
         except Failure as e:
-            if "404" not in str(e): raise
+            if e.status!=404: raise
             d=get_discussion(gh,owner,name,n)
             if not d: raise Failure(f"target #{n} is neither an accessible issue nor discussion")
             if not d["closed"]: out(f"skip discussion #{n}: still open")
-            elif any(owned(c.get("author",{}).get("login"),actor) and marker in (c.get("body") or "") for c in d["all_comments"]): out(f"skip discussion #{n}: already commented for {tag}")
+            elif any(owned((c.get("author") or {}).get("login"),actor) and marker in (c.get("body") or "") for c in d["all_comments"]): out(f"skip discussion #{n}: already commented for {tag}")
             elif dry: out(f"[dry run] would comment on discussion #{n} (from #{pr['number']})")
             else: gh.gql(ADD,id=d["id"],body=body); out(f"commented on discussion #{n} (from #{pr['number']})")
         seen.add(n)
