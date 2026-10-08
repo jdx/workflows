@@ -30,7 +30,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: jdx/workflows
-          ref: ${{ github.workflow_sha }}
+          # Immutable shared-code pin: never execute a caller checkout.
+          ref: 3f6e2ca3eb927166a8912c1259af215175f6802a
           path: workflows
           persist-credentials: false
       - env:
