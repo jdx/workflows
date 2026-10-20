@@ -1,6 +1,13 @@
 # Changelog
 
 ---
+## [1.1.1](https://github.com/jdx/workflows/compare/v1.1.0..v1.1.1) - 2026-10-20
+
+### 🐛 Bug Fixes
+
+- **(comment-release-fixes)** skip release tags with no common ancestor (#12) by [@jdx](https://github.com/jdx) in [#12](https://github.com/jdx/workflows/pull/12)
+
+---
 ## [1.1.0](https://github.com/jdx/workflows/compare/v1.0.0..v1.1.0) - 2026-10-08
 
 ### 🚀 Features
