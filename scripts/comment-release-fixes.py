@@ -63,7 +63,10 @@ def base_release(gh, repo, tag, pattern):
         old=r["tag_name"]
         if old==tag: continue
         try: cmp=gh.api(f"repos/{repo}/compare/{old}...{tag}?per_page=1")
-        except Failure as e: errors.append(str(e)); continue
+        except Failure as e:
+            # Tags from a disjoint history (e.g. a rewritten repo) cannot contain this release; skip them.
+            if e.status==404 and "No common ancestor" in str(e): continue
+            errors.append(str(e)); continue
         # Identical tag aliases do not represent a fresh shipment.
         if cmp.get("status")=="ahead" and cmp.get("ahead_by",0)>0: choices.append((cmp["ahead_by"],i,old))
         elif cmp.get("status")=="identical" and i > target_index: identical.append((i,old))
