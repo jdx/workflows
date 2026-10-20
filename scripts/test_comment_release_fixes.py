@@ -110,6 +110,19 @@ still an example
         })
         self.assertEqual(release.base_release(api, "acme/tool", "v3", re.compile(r"^v.*")), ("v2", True))
 
+    def test_tags_with_no_common_ancestor_are_skipped(self):
+        api = API({
+            "repos/acme/tool/releases?per_page=100&page=1": [
+                {"tag_name": "v2", "draft": False, "prerelease": False},
+                {"tag_name": "v1", "draft": False, "prerelease": False},
+                {"tag_name": "v0.1", "draft": False, "prerelease": False},
+            ],
+            "repos/acme/tool/compare/v1...v2?per_page=1": {"status": "ahead", "ahead_by": 3},
+            "repos/acme/tool/compare/v0.1...v2?per_page=1": release.Failure(
+                "repos/acme/tool/compare/v0.1...v2?per_page=1: gh: No common ancestor between v0.1 and v2. (HTTP 404)", 404),
+        })
+        self.assertEqual(release.base_release(api, "acme/tool", "v2", re.compile(r"^v.*")), ("v1", False))
+
     def test_missing_and_uncomparable_tags_fail_closed(self):
         missing = API({"repos/acme/tool/releases?per_page=100&page=1": [{"tag_name": "v1", "draft": False, "prerelease": False}]})
         with self.assertRaisesRegex(release.Failure, "not a stable"):
