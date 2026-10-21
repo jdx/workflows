@@ -1,0 +1,94 @@
+name: retry
+description: Run a command, retrying it on failure or timeout
+
+# Composite action: a dependency-free replacement for nick-fields/retry.
+#
+# Caller steps add:
+#
+#   - uses: jdx/workflows/retry@<sha> # vX.Y.Z
+#     with:
+#       command: cargo test
+#       max_attempts: 3
+#       timeout_minutes: 30
+#       retry_wait_seconds: 30
+#
+# The retry loop always runs in bash (Git Bash on Windows runners), so set
+# `shell: pwsh` to have each attempt run `command` as PowerShell instead.
+# Each attempt is killed after `timeout_minutes`, which needs `timeout` or
+# `gtimeout` on the PATH (macOS runners without coreutils run without one).
+
+inputs:
+  command:
+    description: The command to run
+    required: true
+  shell:
+    description: Shell that runs the command, `bash` or `pwsh`
+    required: false
+    default: bash
+  max_attempts:
+    description: Number of times to run the command before giving up
+    required: false
+    default: "3"
+  timeout_minutes:
+    description: Minutes after which an attempt is killed and counts as failed, 0 for no limit
+    required: false
+    default: "10"
+  retry_wait_seconds:
+    description: Seconds to wait between attempts
+    required: false
+    default: "10"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RETRY_COMMAND: ${{ inputs.command }}
+        RETRY_SHELL: ${{ inputs.shell }}
+        RETRY_MAX_ATTEMPTS: ${{ inputs.max_attempts }}
+        RETRY_TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
+        RETRY_WAIT_SECONDS: ${{ inputs.retry_wait_seconds }}
+      run: |
+        case "$RETRY_SHELL" in
+          bash) run=(bash -c "$RETRY_COMMAND") ;;
+          pwsh) run=(pwsh -NoProfile -Command "$RETRY_COMMAND") ;;
+          *)
+            echo "::error::Unsupported shell '$RETRY_SHELL' (expected bash or pwsh)"
+            exit 1
+            ;;
+        esac
+        for n in RETRY_MAX_ATTEMPTS RETRY_TIMEOUT_MINUTES RETRY_WAIT_SECONDS; do
+          if ! [[ "${!n}" =~ ^[0-9]+$ ]]; then
+            echo "::error::$n must be a non-negative integer, got '${!n}'"
+            exit 1
+          fi
+        done
+        if [ "$RETRY_MAX_ATTEMPTS" -lt 1 ]; then
+          echo "::error::max_attempts must be at least 1"
+          exit 1
+        fi
+
+        limit=()
+        if command -v timeout >/dev/null 2>&1; then
+          limit=(timeout --kill-after=30 "$((RETRY_TIMEOUT_MINUTES * 60))")
+        elif command -v gtimeout >/dev/null 2>&1; then
+          limit=(gtimeout --kill-after=30 "$((RETRY_TIMEOUT_MINUTES * 60))")
+        else
+          echo "::warning::timeout is not available; attempts will not be time limited"
+        fi
+
+        attempt=1
+        while true; do
+          status=0
+          "${limit[@]}" "${run[@]}" || status=$?
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if [ "$attempt" -ge "$RETRY_MAX_ATTEMPTS" ]; then
+            echo "::error::Command failed after $attempt attempt(s) (exit $status)"
+            exit "$status"
+          fi
+          echo "::warning::Attempt $attempt of $RETRY_MAX_ATTEMPTS failed (exit $status); retrying in ${RETRY_WAIT_SECONDS}s"
+          sleep "$RETRY_WAIT_SECONDS"
+          attempt=$((attempt + 1))
+        done

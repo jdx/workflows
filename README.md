@@ -1,16 +1,18 @@
 # workflows
 
-Reusable GitHub Actions workflows shared by jdx repositories.
+Reusable GitHub Actions workflows and composite actions shared by jdx repositories.
 
 | Workflow | Purpose |
 | --- | --- |
 | `.github/workflows/draft-limit.yml` | Closes a draft pull request when its author already has another open draft |
 
+| `retry/action.yml` | Composite action that retries a command on failure or timeout (replaces `nick-fields/retry`) |
+
 Each workflow's header comment shows the caller setup.
 
 ## Releases
 
-The workflows are released as `vX.Y.Z` tags, and callers pin the tag's commit
+The workflows and actions are released as `vX.Y.Z` tags, and callers pin the tag's commit
 with the version as a comment:
 
 ```yaml
@@ -33,6 +35,22 @@ release is a week old.
 The release workflows need two repository secrets: `RELEASE_PLZ_GITHUB_TOKEN`
 (a PAT, so the release PR runs CI and its merge starts `release.yml`) and
 `ANTHROPIC_API_KEY` (for communique's release notes).
+
+## retry
+
+`retry/action.yml` runs a command up to `max_attempts` times, killing an attempt
+after `timeout_minutes` and sleeping `retry_wait_seconds` between attempts. It
+takes the same inputs as `nick-fields/retry` without needing Node. Set
+`shell: pwsh` to run the command as PowerShell, as on Windows runners:
+
+```yaml
+- uses: jdx/workflows/retry@<sha> # vX.Y.Z
+  with:
+    command: cargo test
+    max_attempts: 2
+    timeout_minutes: 30
+    retry_wait_seconds: 30
+```
 
 ## draft-limit
 
