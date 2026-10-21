@@ -54,7 +54,7 @@ runs:
           pwsh)
             # -Command only reports the last statement's status, so stop on
             # errors and fail on the exit code of a native command.
-            ps_command=$'$ErrorActionPreference = \'Stop\'\n$global:LASTEXITCODE = 0\n'"$RETRY_COMMAND"$'\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }'
+            ps_command=$'$ErrorActionPreference = \'Stop\'\n$PSNativeCommandUseErrorActionPreference = $true\n$global:LASTEXITCODE = 0\n'"$RETRY_COMMAND"$'\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }'
             run=(pwsh -NoProfile -Command "$ps_command")
             ;;
           *)
