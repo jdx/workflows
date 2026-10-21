@@ -67,13 +67,15 @@ runs:
           exit 1
         fi
 
-        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
-        # The first secret key's fingerprint is the first fpr record after sec.
-        fingerprint=$(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "sec" { sec = 1 } sec && $1 == "fpr" { print $10; exit }')
+        # Read the fingerprint from the supplied key itself, not the keyring,
+        # which may already hold other secret keys on a reused runner.
+        fingerprint=$(printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --with-colons --import-options show-only --import \
+          | awk -F: '$1 == "sec" { sec = 1 } sec && $1 == "fpr" { print $10; exit }')
         if [ -z "$fingerprint" ]; then
-          echo "::error::No secret key found after import"
+          echo "::error::gpg_private_key does not contain a secret key"
           exit 1
         fi
+        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
         keyid=${fingerprint: -16}
         echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
         echo "keyid=$keyid" >> "$GITHUB_OUTPUT"

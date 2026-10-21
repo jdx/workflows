@@ -51,7 +51,12 @@ runs:
       run: |
         case "$RETRY_SHELL" in
           bash) run=(bash -c "$RETRY_COMMAND") ;;
-          pwsh) run=(pwsh -NoProfile -Command "$RETRY_COMMAND") ;;
+          pwsh)
+            # -Command only reports the last statement's status, so stop on
+            # errors and fail on the exit code of a native command.
+            ps_command=$'$ErrorActionPreference = \'Stop\'\n$global:LASTEXITCODE = 0\n'"$RETRY_COMMAND"$'\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }'
+            run=(pwsh -NoProfile -Command "$ps_command")
+            ;;
           *)
             echo "::error::Unsupported shell '$RETRY_SHELL' (expected bash or pwsh)"
             exit 1

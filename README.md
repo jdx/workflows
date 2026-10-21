@@ -41,7 +41,9 @@ The release workflows need two repository secrets: `RELEASE_PLZ_GITHUB_TOKEN`
 
 `retry/action.yml` runs a command up to `max_attempts` times, killing an attempt
 after `timeout_minutes` and sleeping `retry_wait_seconds` between attempts. It
-takes the same inputs as `nick-fields/retry` without needing Node. Set
+takes the `nick-fields/retry` inputs mise uses (`command`, `max_attempts`,
+`timeout_minutes`, `retry_wait_seconds`) without needing Node; `retry_on` and
+`timeout_seconds` are not supported. Set
 `shell: pwsh` to run the command as PowerShell, as on Windows runners:
 
 ```yaml
