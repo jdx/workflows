@@ -1,0 +1,94 @@
+name: gpg-import
+description: Import a GPG private key and optionally configure git to sign with it
+
+# Composite action: a dependency-free replacement for
+# crazy-max/ghaction-import-gpg, covering the common case of an ASCII-armored
+# key without a passphrase.
+#
+# Caller steps add:
+#
+#   - uses: jdx/workflows/gpg-import@<sha> # vX.Y.Z
+#     with:
+#       gpg_private_key: ${{ secrets.GPG_KEY }}
+#       git_user_signingkey: true
+#       git_commit_gpgsign: true
+#
+# Needs bash and gpg on the runner (Linux and macOS runners have both). Git
+# settings go in the global git config, so the step works before or after
+# checkout. Passphrase-protected keys are not supported.
+
+inputs:
+  gpg_private_key:
+    description: ASCII-armored GPG private key, without a passphrase
+    required: true
+  trust_level:
+    description: Trust to give the imported key, 1 (unknown) to 5 (ultimate), or empty to leave it untrusted
+    required: false
+    default: ""
+  git_user_signingkey:
+    description: Set git's user.signingkey to the imported key
+    required: false
+    default: "false"
+  git_commit_gpgsign:
+    description: Sign every git commit with the imported key
+    required: false
+    default: "false"
+  git_tag_gpgsign:
+    description: Sign every git tag with the imported key
+    required: false
+    default: "false"
+
+outputs:
+  fingerprint:
+    description: Fingerprint of the imported key
+    value: ${{ steps.import.outputs.fingerprint }}
+  keyid:
+    description: Long key ID of the imported key
+    value: ${{ steps.import.outputs.keyid }}
+
+runs:
+  using: composite
+  steps:
+    - id: import
+      shell: bash
+      env:
+        GPG_PRIVATE_KEY: ${{ inputs.gpg_private_key }}
+        TRUST_LEVEL: ${{ inputs.trust_level }}
+        GIT_USER_SIGNINGKEY: ${{ inputs.git_user_signingkey }}
+        GIT_COMMIT_GPGSIGN: ${{ inputs.git_commit_gpgsign }}
+        GIT_TAG_GPGSIGN: ${{ inputs.git_tag_gpgsign }}
+      run: |
+        if [ -z "$GPG_PRIVATE_KEY" ]; then
+          echo "::error::gpg_private_key is empty"
+          exit 1
+        fi
+        if ! [[ "$TRUST_LEVEL" =~ ^([1-5])?$ ]]; then
+          echo "::error::trust_level must be between 1 and 5, got '$TRUST_LEVEL'"
+          exit 1
+        fi
+
+        printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
+        # The first secret key's fingerprint is the first fpr record after sec.
+        fingerprint=$(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "sec" { sec = 1 } sec && $1 == "fpr" { print $10; exit }')
+        if [ -z "$fingerprint" ]; then
+          echo "::error::No secret key found after import"
+          exit 1
+        fi
+        keyid=${fingerprint: -16}
+        echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+        echo "keyid=$keyid" >> "$GITHUB_OUTPUT"
+
+        if [ -n "$TRUST_LEVEL" ]; then
+          # gpg ownertrust runs 2 (unknown) to 6 (ultimate)
+          echo "$fingerprint:$((TRUST_LEVEL + 1)):" | gpg --batch --import-ownertrust
+        fi
+
+        if [ "$GIT_USER_SIGNINGKEY" = true ]; then
+          git config --global user.signingkey "$keyid"
+        fi
+        if [ "$GIT_COMMIT_GPGSIGN" = true ]; then
+          git config --global commit.gpgsign true
+        fi
+        if [ "$GIT_TAG_GPGSIGN" = true ]; then
+          git config --global tag.gpgsign true
+        fi

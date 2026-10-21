@@ -7,6 +7,7 @@ Reusable GitHub Actions workflows and composite actions shared by jdx repositori
 | `.github/workflows/draft-limit.yml` | Closes a draft pull request when its author already has another open draft |
 
 | `retry/action.yml` | Composite action that retries a command on failure or timeout (replaces `nick-fields/retry`) |
+| `gpg-import/action.yml` | Composite action that imports a GPG key and configures git signing (replaces `crazy-max/ghaction-import-gpg`) |
 
 Each workflow's header comment shows the caller setup.
 
@@ -50,6 +51,22 @@ takes the same inputs as `nick-fields/retry` without needing Node. Set
     max_attempts: 2
     timeout_minutes: 30
     retry_wait_seconds: 30
+```
+
+## gpg-import
+
+`gpg-import/action.yml` imports an ASCII-armored GPG private key and can turn on
+git signing. It covers the inputs mise uses (`gpg_private_key`, `trust_level`,
+`git_user_signingkey`, `git_commit_gpgsign`, `git_tag_gpgsign`) and outputs the
+key's `fingerprint` and `keyid`. Git settings go in the global config, and keys
+with a passphrase are not supported:
+
+```yaml
+- uses: jdx/workflows/gpg-import@<sha> # vX.Y.Z
+  with:
+    gpg_private_key: ${{ secrets.GPG_KEY }}
+    git_user_signingkey: true
+    git_commit_gpgsign: true
 ```
 
 ## draft-limit
