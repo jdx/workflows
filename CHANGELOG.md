@@ -1,6 +1,13 @@
 # Changelog
 
 ---
+## [1.2.1](https://github.com/jdx/workflows/compare/v1.2.0..v1.2.1) - 2026-10-21
+
+### 🐛 Bug Fixes
+
+- **(retry)** enforce timeout_minutes without coreutils timeout (#18) by [@jdx](https://github.com/jdx) in [#18](https://github.com/jdx/workflows/pull/18)
+
+---
 ## [1.2.0](https://github.com/jdx/workflows/compare/v1.1.2..v1.2.0) - 2026-10-21
 
 ### 🚀 Features
