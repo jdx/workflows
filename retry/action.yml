@@ -85,9 +85,13 @@ runs:
           elif command -v gtimeout >/dev/null 2>&1; then
             gtimeout --kill-after=30 "$seconds" "$@"
           else
+            # Job control gives the attempt its own process group, so the
+            # watchdog can signal its descendants like timeout does.
+            set -m
             "$@" &
             local pid=$!
-            (sleep "$seconds"; kill -TERM "$pid"; sleep 30; kill -KILL "$pid") >/dev/null 2>&1 &
+            set +m
+            (sleep "$seconds"; kill -TERM -- "-$pid"; sleep 30; kill -KILL -- "-$pid") >/dev/null 2>&1 &
             local watchdog=$!
             local rc=0
             wait "$pid" || rc=$?
