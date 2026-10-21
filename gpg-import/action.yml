@@ -70,7 +70,7 @@ runs:
         # Read the fingerprint from the supplied key itself, not the keyring,
         # which may already hold other secret keys on a reused runner.
         fingerprint=$(printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --with-colons --import-options show-only --import \
-          | awk -F: '$1 == "sec" { sec = 1 } sec && $1 == "fpr" { print $10; exit }')
+          | awk -F: '$1 ~ /^sec/ { sec = 1 } sec && $1 == "fpr" { print $10; exit }')
         if [ -z "$fingerprint" ]; then
           echo "::error::gpg_private_key does not contain a secret key"
           exit 1
