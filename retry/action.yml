@@ -13,7 +13,8 @@ description: Run a command, retrying it on failure or timeout
 #       retry_wait_seconds: 30
 #
 # The retry loop always runs in bash (Git Bash on Windows runners), so set
-# `shell: pwsh` to have each attempt run `command` as PowerShell instead.
+# `shell: pwsh` (PowerShell 7.3 or newer) to have each attempt run `command` as
+# PowerShell instead.
 # Each attempt is killed after `timeout_minutes`, which needs `timeout` or
 # `gtimeout` on the PATH (macOS runners without coreutils run without one).
 
@@ -54,7 +55,7 @@ runs:
           pwsh)
             # -Command only reports the last statement's status, so stop on
             # errors and fail on the exit code of a native command.
-            ps_command=$'$ErrorActionPreference = \'Stop\'\n$PSNativeCommandUseErrorActionPreference = $true\n$global:LASTEXITCODE = 0\n'"$RETRY_COMMAND"$'\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }'
+            ps_command=$'if ($PSVersionTable.PSVersion -lt [version]\'7.3\') { throw \'retry with shell: pwsh needs PowerShell 7.3 or newer\' }\n$ErrorActionPreference = \'Stop\'\n$PSNativeCommandUseErrorActionPreference = $true\n$global:LASTEXITCODE = 0\n'"$RETRY_COMMAND"$'\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }'
             run=(pwsh -NoProfile -Command "$ps_command")
             ;;
           *)

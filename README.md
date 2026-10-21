@@ -44,7 +44,7 @@ after `timeout_minutes` and sleeping `retry_wait_seconds` between attempts. It
 takes the `nick-fields/retry` inputs mise uses (`command`, `max_attempts`,
 `timeout_minutes`, `retry_wait_seconds`) without needing Node; `retry_on` and
 `timeout_seconds` are not supported. Set
-`shell: pwsh` to run the command as PowerShell, as on Windows runners:
+`shell: pwsh` to run the command as PowerShell 7.3 or newer, as on Windows runners:
 
 ```yaml
 - uses: jdx/workflows/retry@<sha> # vX.Y.Z
