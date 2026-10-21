@@ -15,8 +15,8 @@ description: Run a command, retrying it on failure or timeout
 # The retry loop always runs in bash (Git Bash on Windows runners), so set
 # `shell: pwsh` (PowerShell 7.3 or newer) to have each attempt run `command` as
 # PowerShell instead.
-# Each attempt is killed after `timeout_minutes`, which needs `timeout` or
-# `gtimeout` on the PATH (macOS runners without coreutils run without one).
+# Each attempt is killed after `timeout_minutes`, using `timeout` or `gtimeout`
+# when installed and a built-in watchdog otherwise (hosted macOS runners).
 
 inputs:
   command:
@@ -74,19 +74,33 @@ runs:
           exit 1
         fi
 
-        limit=()
-        if command -v timeout >/dev/null 2>&1; then
-          limit=(timeout --kill-after=30 "$((RETRY_TIMEOUT_MINUTES * 60))")
-        elif command -v gtimeout >/dev/null 2>&1; then
-          limit=(gtimeout --kill-after=30 "$((RETRY_TIMEOUT_MINUTES * 60))")
-        else
-          echo "::warning::timeout is not available; attempts will not be time limited"
-        fi
+        # Run "$@", killing it after the timeout. Prefer coreutils timeout, and
+        # fall back to a watchdog where it is missing (hosted macOS runners).
+        seconds=$((RETRY_TIMEOUT_MINUTES * 60))
+        run_limited() {
+          if [ "$seconds" -eq 0 ]; then
+            "$@"
+          elif command -v timeout >/dev/null 2>&1; then
+            timeout --kill-after=30 "$seconds" "$@"
+          elif command -v gtimeout >/dev/null 2>&1; then
+            gtimeout --kill-after=30 "$seconds" "$@"
+          else
+            "$@" &
+            local pid=$!
+            (sleep "$seconds"; kill -TERM "$pid"; sleep 30; kill -KILL "$pid") >/dev/null 2>&1 &
+            local watchdog=$!
+            local rc=0
+            wait "$pid" || rc=$?
+            kill "$watchdog" >/dev/null 2>&1 || true
+            wait "$watchdog" >/dev/null 2>&1 || true
+            return "$rc"
+          fi
+        }
 
         attempt=1
         while true; do
           status=0
-          "${limit[@]}" "${run[@]}" || status=$?
+          run_limited "${run[@]}" || status=$?
           if [ "$status" -eq 0 ]; then
             exit 0
           fi
