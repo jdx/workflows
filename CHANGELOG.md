@@ -1,6 +1,13 @@
 # Changelog
 
 ---
+## [1.2.2](https://github.com/jdx/workflows/compare/v1.2.1..v1.2.2) - 2026-11-13
+
+### ⚙️ Miscellaneous Tasks
+
+- run release notification tests on pull requests (#27) by [@jdx](https://github.com/jdx) in [#27](https://github.com/jdx/workflows/pull/27)
+
+---
 ## [1.2.1](https://github.com/jdx/workflows/compare/v1.2.0..v1.2.1) - 2026-10-21
 
 ### 🐛 Bug Fixes
