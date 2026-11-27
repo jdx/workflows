@@ -5,6 +5,7 @@ Reusable GitHub Actions workflows and composite actions shared by jdx repositori
 | Workflow | Purpose |
 | --- | --- |
 | `.github/workflows/draft-limit.yml` | Closes a draft pull request when its author already has another open draft |
+| `.github/workflows/link-discussions.yml` | Comments on, and closes, the discussions a merged pull request references |
 
 | `retry/action.yml` | Composite action that retries a command on failure or timeout (replaces `nick-fields/retry`) |
 | `gpg-import/action.yml` | Composite action that imports a GPG key and configures git signing (replaces `crazy-max/ghaction-import-gpg`) |
@@ -78,3 +79,15 @@ open. `draft-limit.yml` closes a draft pull request, with a comment, when its
 author already has `max_drafts` other open drafts. Maintainers and bots are
 exempt. See the workflow's header comment for the caller setup, including why
 it needs `pull_request_target`.
+
+## link-discussions
+
+GitHub closes issues named with `Fixes #N` when a pull request merges, but
+not discussions. `link-discussions.yml` runs on the merged pull request,
+comments on each discussion its body references, and closes the ones named
+with a closing keyword (`Fixes #42`, `Fixes: #42`, or a full URL to a
+discussion in the same repository). `Refs #42` and `Discussion: #42` only
+comment. It parses closing references with the same code as
+`comment-release-fixes.yml`, so every discussion it closes later gets the
+"Fixed in vX" release comment. See the workflow's header comment for the
+caller setup.
