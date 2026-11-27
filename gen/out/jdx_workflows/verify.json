@@ -1,0 +1,87 @@
+{
+  "cli_version": "v0.5.1",
+  "findings": [
+    {
+      "workflow": ".github/workflows/auto-merge-release.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/ci.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/comment-release-fixes.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/link-discussions.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/release-plz.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/release-plz.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/jdx/mise-action/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/jdx/mise-action/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    }
+  ],
+  "lockfile_version": "v0.0.3",
+  "valid": true
+}
