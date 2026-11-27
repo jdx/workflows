@@ -21,7 +21,7 @@ name: link-discussions
 #
 #   name: link-discussions
 #   on:
-#     pull_request:
+#     pull_request_target: # zizmor: ignore[dangerous-triggers]
 #       types: [closed]
 #   permissions: {}
 #   jobs:
@@ -33,6 +33,12 @@ name: link-discussions
 #         pull-requests: read
 #         discussions: write
 #       uses: jdx/workflows/.github/workflows/link-discussions.yml@<sha> # vX.Y.Z
+#
+# The caller must use pull_request_target: on pull_request, a merged fork PR
+# gets a read-only token and can't comment on or close discussions. That is
+# safe here because this workflow never checks out or runs the pull request's
+# code; it reads the PR body through the API. The zizmor ignore records that
+# for the dangerous-triggers audit.
 #
 # Run it by hand with workflow_dispatch (a dry run by default) to preview or
 # repair a merged pull request.
@@ -50,6 +56,11 @@ on:
 jobs:
   link:
     runs-on: ubuntu-latest
+    # Serialize runs for one PR, so a manual repair overlapping the merge run
+    # sees the other run's marker instead of posting a second comment.
+    concurrency:
+      group: link-discussions-${{ github.repository }}-${{ inputs.pr_number || github.event.pull_request.number }}
+      cancel-in-progress: false
     timeout-minutes: 10
     permissions:
       contents: read
