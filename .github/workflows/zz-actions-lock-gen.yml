@@ -1,0 +1,25 @@
+name: actions-lock-gen (temporary)
+on:
+  push:
+    branches: [tmp/actions-lock-gen]
+permissions:
+  contents: write
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - run: |
+          git clone -q --depth 1 --branch tmp/actions-lock-gen "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" gen
+          cd gen/gen
+          gh extension install github/gh-actions-lock --pin v0.5.1
+          gh actions-lock --version
+          ./run.sh
+          cd ..
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add gen/out
+          git commit -q -m "gen output"
+          git push -q origin HEAD:tmp/actions-lock-gen
+        env:
+          GH_TOKEN: ${{ github.token }}
