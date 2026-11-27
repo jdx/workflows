@@ -72,7 +72,7 @@ jobs:
         with:
           repository: jdx/workflows
           # Immutable shared-code pin: never execute a caller checkout.
-          ref: b3f45e289ac611dcd0790ca97bb7b26678f4acf3
+          ref: 922125f8d0298ff306558ca7c6fea299a24ae1cc
           path: workflows
           persist-credentials: false
       - env:
