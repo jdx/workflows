@@ -44,7 +44,7 @@ def link(gh, repo, number, dry, actor, out=print):
                 if e.status != 404: raise
             d = release.get_discussion(gh, owner, name, n)
             if not d: out(f"skip #{n}: not an accessible discussion"); continue
-            if any(release.owned((c.get("author") or {}).get("login"), actor) and marker in (c.get("body") or "") for c in d["all_comments"]):
+            if any(release.owned((c.get("author") or {}).get("login"), actor) and (c.get("body") or "").split("\n", 1)[0].strip() == marker for c in d["all_comments"]):
                 out(f"skip comment on discussion #{n}: already linked")
             elif dry: out(f"[dry run] would comment on discussion #{n}")
             else: gh.gql(release.ADD, id=d["id"], body=body); out(f"commented on discussion #{n}")

@@ -14,8 +14,9 @@ def clean(body):
     body = re.sub(r"<!--[\s\S]*?-->", "", body or "")
     # Match the whole delimiter, so four-backtick fences and longer delimiters
     # cannot be escaped by a three-backtick line inside an example.
-    body = re.sub(r"(?ms)^\s*(?P<backtick>`{3,})[^\n]*\n.*?^\s*(?P=backtick)`*\s*$", "", body)
-    body = re.sub(r"(?ms)^\s*(?P<tilde>~{3,})[^\n]*\n.*?^\s*(?P=tilde)~*\s*$", "", body)
+    # An unclosed fence runs to the end of the body, as in GFM.
+    body = re.sub(r"(?ms)^\s*(?P<backtick>`{3,})[^\n]*(?:\n.*?(?:^\s*(?P=backtick)`*\s*$|\Z)|\Z)", "", body)
+    body = re.sub(r"(?ms)^\s*(?P<tilde>~{3,})[^\n]*(?:\n.*?(?:^\s*(?P=tilde)~*\s*$|\Z)|\Z)", "", body)
     # GitHub permits arbitrary-length inline delimiters and multiline spans.
     body = re.sub(r"(?s)(`+).*?\1", "", body)
     return "\n".join(l for l in body.splitlines()

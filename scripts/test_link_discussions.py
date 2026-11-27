@@ -125,6 +125,12 @@ class LinkTests(unittest.TestCase):
         run(api)
         self.assertEqual([kind for kind, _ in api.writes], ["comment"])
 
+    def test_marker_must_be_the_first_line(self):
+        quoted = {"author": {"login": "github-actions"}, "body": "<!-- link-discussions:#98 -->\nImplemented in #98: <!-- link-discussions:#99 -->"}
+        api = API(pull("Refs #5"), discussions={5: discussion(5, comments=[quoted])})
+        run(api)
+        self.assertEqual([kind for kind, _ in api.writes], ["comment"])
+
     def test_issues_and_pull_requests_are_skipped(self):
         api = API(pull("Fixes #5\nRefs #6"), issues={5, 6})
         log = run(api)
