@@ -11,6 +11,10 @@ while read -r r; do
   git clone -q --depth 1 "https://github.com/$r" "work/$d" || { echo clone-failed > "$o/status"; echo "::endgroup::"; continue; }
   git -C "work/$d" rev-parse HEAD > "$o/base"
   ( cd "work/$d" && gh actions-lock --no-interactive --no-narrow --json=valid,findings > "../../$o/fix.json" 2> "../../$o/fix.err"; echo $? > "../../$o/fix.rc" )
+  if jq -e '[.findings[]? | select(.severity=="error" and .category=="local-action")] | length > 0' "$o/fix.json" >/dev/null; then
+    echo migrate > "$o/migrated"
+    ( cd "work/$d" && gh actions-lock --no-interactive --no-narrow --migrate-local-actions --json=valid,findings > "../../$o/fix.json" 2> "../../$o/fix.err"; echo $? > "../../$o/fix.rc" )
+  fi
   ( cd "work/$d" && gh actions-lock --verify --json=valid,findings > "../../$o/verify.json" 2> "../../$o/verify.err"; echo $? > "../../$o/verify.rc" )
   ( cd "work/$d" && git add -A .github && git diff --cached --binary > "../../$o/change.patch"; git diff --cached --stat > "../../$o/stat" )
   echo "fix=$(cat $o/fix.rc) verify=$(cat $o/verify.rc) $(tail -1 $o/stat)"
