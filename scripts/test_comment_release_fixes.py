@@ -74,6 +74,24 @@ still an example
 #4`"""
         self.assertEqual(release.refs(body, "acme", "tool"), [1])
 
+    def test_unclosed_fence_runs_to_end_of_body(self):
+        self.assertEqual(release.refs("Fixes #1\n~~~\nFixes #5", "acme", "tool"), [1])
+        self.assertEqual(release.refs("Fixes #1\n````md\n```\nFixes #5\n```", "acme", "tool"), [1])
+        self.assertEqual(release.refs("Fixes #1\n```", "acme", "tool"), [1])
+
+    def test_fences_are_read_in_order(self):
+        body = "~~~markdown\n```\nexample\n~~~\n\nFixes #42"
+        self.assertEqual(release.refs(body, "acme", "tool"), [42])
+        body = "```md\n~~~\nFixes #1\n```\nFixes #2"
+        self.assertEqual(release.refs(body, "acme", "tool"), [2])
+
+    def test_crlf_fences_close(self):
+        self.assertEqual(release.refs("```\r\nFixes #1\r\n```\r\nFixes #2", "acme", "tool"), [2])
+
+    def test_inline_triple_backtick_span_is_not_a_fence(self):
+        body = "```foo``` is supported\nFixes #7"
+        self.assertEqual(release.refs(body, "acme", "tool"), [7])
+
     def test_interleaved_tags_choose_closest_ancestor_not_list_order(self):
         api = API({
             "repos/acme/tool/releases?per_page=100&page=1": [

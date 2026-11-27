@@ -10,12 +10,31 @@ MERGE_SUBJECT = re.compile(r"^Merge pull request #(?P<number>[1-9]\d*)\b", re.I)
 class Failure(Exception):
     def __init__(self, message, status=None): super().__init__(message); self.status=status
 
+FENCE_OPEN = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$")
+FENCE_CLOSE = re.compile(r"^[ \t]*(`{3,}|~{3,})\s*$")
+
+def strip_fences(body):
+    """Drop fenced code blocks, reading fences in order as GFM does.
+
+    A fence closes only on a line of the same character that is at least as
+    long as the opener, so a ``` line inside a ~~~ or ```` example doesn't end
+    it. A backtick opener can't have backticks after it (```x``` is inline
+    code). An unclosed fence runs to the end of the body.
+    """
+    out=[]; fence=None
+    for line in body.splitlines():
+        if fence is None:
+            m=FENCE_OPEN.match(line)
+            if m and not (m[1][0]=="`" and "`" in m[2]): fence=m[1]
+            else: out.append(line)
+        else:
+            m=FENCE_CLOSE.match(line)
+            if m and m[1][0]==fence[0] and len(m[1])>=len(fence): fence=None
+    return "\n".join(out)
+
 def clean(body):
     body = re.sub(r"<!--[\s\S]*?-->", "", body or "")
-    # Match the whole delimiter, so four-backtick fences and longer delimiters
-    # cannot be escaped by a three-backtick line inside an example.
-    body = re.sub(r"(?ms)^\s*(?P<backtick>`{3,})[^\n]*\n.*?^\s*(?P=backtick)`*\s*$", "", body)
-    body = re.sub(r"(?ms)^\s*(?P<tilde>~{3,})[^\n]*\n.*?^\s*(?P=tilde)~*\s*$", "", body)
+    body = strip_fences(body)
     # GitHub permits arbitrary-length inline delimiters and multiline spans.
     body = re.sub(r"(?s)(`+).*?\1", "", body)
     return "\n".join(l for l in body.splitlines()
