@@ -1,6 +1,23 @@
 # Changelog
 
 ---
+## [1.3.0](https://github.com/jdx/workflows/compare/v1.2.1..v1.3.0) - 2026-11-28
+
+### 🚀 Features
+
+- **(link-discussions)** close discussions that a merged pull request fixes (#34) by [@jdx](https://github.com/jdx) in [#34](https://github.com/jdx/workflows/pull/34)
+
+### ⚙️ Miscellaneous Tasks
+
+- run release notification tests on pull requests (#27) by [@jdx](https://github.com/jdx) in [#27](https://github.com/jdx/workflows/pull/27)
+- add GitHub Actions workflow lockfile by [@claude](https://github.com/claude) in [79eade6](https://github.com/jdx/workflows/commit/79eade6f4b330dfc6c335500ecaa6b7a046b9b64)
+- enable Entire checkpoints, graph, brain and search (#35) by [@jdx](https://github.com/jdx) in [#35](https://github.com/jdx/workflows/pull/35)
+
+### New Contributors
+
+* @claude made their first contribution
+
+---
 ## [1.2.1](https://github.com/jdx/workflows/compare/v1.2.0..v1.2.1) - 2026-10-21
 
 ### 🐛 Bug Fixes
