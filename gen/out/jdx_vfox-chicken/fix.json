@@ -1,0 +1,27 @@
+{
+  "cli_version": "v0.5.1",
+  "findings": [
+    {
+      "workflow": ".github/workflows/test.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/actions/checkout/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    },
+    {
+      "workflow": ".github/workflows/test.yml",
+      "category": "sha-as-ref",
+      "severity": "warning",
+      "confidence": "high",
+      "dependency": "jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac",
+      "detail": "pinned to a bare SHA without a symbolic ref — weakens supply-chain traceability",
+      "remediation": "pin to a tag instead: https://github.com/jdx/mise-action/releases",
+      "doc_url": "https://github.com/github/gh-actions-lock/blob/main/docs/troubleshooting.md#sha-as-ref"
+    }
+  ],
+  "lockfile_version": "v0.0.3",
+  "valid": true
+}
