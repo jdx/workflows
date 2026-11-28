@@ -91,3 +91,24 @@ comment. It parses closing references with the same code as
 `comment-release-fixes.yml`, so every discussion it closes later gets the
 "Fixed in vX" release comment. See the workflow's header comment for the
 caller setup.
+
+## Entire checkpoints
+
+This repository records [Entire](https://entire.io) checkpoints, which include
+agent session transcripts, and pushes them to the private
+`jdx/workflows-checkpoints` repository. Entire ignores that setting in a fork
+owned by another account and pushes checkpoints to the fork instead, which is
+public. If you work from a fork with Entire enabled, turn off session pushing
+before you push:
+
+```sh
+entire configure --local --skip-push-sessions
+```
+
+or send checkpoints to a private repository you own:
+
+```sh
+entire configure --local --checkpoint-remote github:<you>/<private-repo>
+```
+
+Both write `.entire/settings.local.json`, which is not committed.
