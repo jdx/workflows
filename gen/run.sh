@@ -10,6 +10,7 @@ while read -r r; do
   rm -rf "work/$d"
   git clone -q --depth 1 "https://github.com/$r" "work/$d" || { echo clone-failed > "$o/status"; echo "::endgroup::"; continue; }
   git -C "work/$d" rev-parse HEAD > "$o/base"
+  [ -f "pre/$d.patch" ] && git -C "work/$d" apply "$PWD/pre/$d.patch" && echo prepatched > "$o/prepatched"
   ( cd "work/$d" && gh actions-lock --no-interactive --no-narrow --json=valid,findings > "../../$o/fix.json" 2> "../../$o/fix.err"; echo $? > "../../$o/fix.rc" )
   if jq -e '[.findings[]? | select(.severity=="error" and .category=="local-action")] | length > 0' "$o/fix.json" >/dev/null; then
     echo migrate > "$o/migrated"
